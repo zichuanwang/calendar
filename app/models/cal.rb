@@ -12,4 +12,13 @@ class Cal < ActiveRecord::Base
         cal.name = cal_obj['summary']
         cal.save
     end
+
+    def json_presentation
+        json = {}
+        json[:calendar_id] = self.id
+        json[:name] = self.name
+        json[:foreground_color] = self.foreground_color
+        json[:background_color] = self.background_color
+        json
+    end
 end

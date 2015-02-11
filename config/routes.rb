@@ -3,7 +3,7 @@ Rails.application.routes.draw do
   # See how all your routes lay out with "rake routes".
 
   resources :users, :only => [:create]
-  get 'users/:id/calendars', :to => 'calendars#index'
+  get 'users/:user_id/calendars/:calendar_id/events', :to => 'calendars#events'
 
   # You can have the root of your site routed with "root"
   # root 'welcome#index'

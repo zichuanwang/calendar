@@ -7,6 +7,7 @@
     <script src='fullcalendar/lib/jquery.min.js'></script>
     <script src='fullcalendar/lib/moment.min.js'></script>
     <script src='fullcalendar/fullcalendar.js'></script>
+    <script src="websocket_rails.0.0.1.min.js"></script>
     <script>
         var client_id = "165092632195-qfpg6do51ecs55teh3vapiom40kentk0.apps.googleusercontent.com";
         var api_key = "z1alvNSMkWU_vOaMG7n16F7V";
@@ -49,6 +50,73 @@
             });
         }
 
+        CALENDARS = {}
+
+        function updateCalendar(cal) {
+            console.log(cal);
+            var url = "http://localhost:3000/users/" + USER_ID + "/calendars/" + cal.calendar_id + "/events";
+            console.log(url);
+            var source = {
+                // name: cal.name,
+                events: function(start, end, timezone, callback) {
+                    $.ajax({
+                        url: url,
+                        dataType: 'json',
+                        data: {
+                            start: start.unix(),
+                            end: end.unix()
+                        },
+                        success: function(json) {
+                            var events = [];
+                            for (var i = 0; i < json.events.length; i++) {
+                                var evt = json.events[i]
+                                events.push({
+                                    title: evt.title,
+                                    start: evt.start,
+                                    end: evt.end,
+                                    id: evt.id
+                                });
+                            }
+                            console.log(events);
+                            callback(events);
+                        }
+                    });
+                },
+                color: cal.background_color, 
+                textColor: cal.foreground_color
+            };
+
+            CALENDARS[cal.calendar_id] = source;
+            showCalendar(cal.calendar_id);
+
+            addCheckbox(cal.calendar_id, cal.name, cal.background_color);
+        }
+
+        function showCalendar(cal_id) {
+            var source = CALENDARS[cal_id]
+            $('#calendar').fullCalendar('addEventSource', source);
+        }
+
+        function hideCalendar(cal_id) {
+            var source = CALENDARS[cal_id]
+            $('#calendar').fullCalendar('removeEventSource', source);
+        }
+
+        function addCheckbox(cal_id, cal_name, background_color) {
+           var container = $('#cblist');
+           var inputs = container.find('input');
+           var li = $('<li />').appendTo(container);
+           $('<input />', { type: 'checkbox', id: 'cb' + cal_id, value: cal_name }).prop('checked', true).click(function() {
+                var $this = $(this);
+                if ($this.is(':checked')) {
+                    showCalendar(this.id.substr(2));
+                } else {
+                    hideCalendar(this.id.substr(2));
+                }
+            }).appendTo(li);
+           $('<label />', { 'for': 'cb' + cal_id, text: cal_name }).css('background-color', background_color).appendTo(li);
+        }
+
         function register(email) {
             var url = "http://localhost:3000/users";
             var data = {
@@ -59,6 +127,12 @@
             };
             $.post(url, data, function(result) {
                 console.log(result);
+                USER_ID = result.user_id;
+                if (result.calendars) {
+                    for (var i = 0; i < result.calendars.length; i++) {
+                        updateCalendar(result.calendars[i]);
+                    }
+                }
             });
         }
     </script>
@@ -67,66 +141,9 @@
     <script>
 
         $(document).ready(function() {
-
             $('#calendar').fullCalendar({
                 editable: true,
                 eventLimit: true, // allow "more" link when too many events
-                events: [
-                {
-                    title: 'All Day Event',
-                    start: '2014-11-01'
-                },
-                {
-                    title: 'Long Event',
-                    start: '2014-11-07',
-                    end: '2014-11-10'
-                },
-                {
-                    id: 999,
-                    title: 'Repeating Event',
-                    start: '2014-11-09T16:00:00'
-                },
-                {
-                    id: 999,
-                    title: 'Repeating Event',
-                    start: '2014-11-16T16:00:00'
-                },
-                {
-                    title: 'Conference',
-                    start: '2014-11-11',
-                    end: '2014-11-13'
-                },
-                {
-                    title: 'Meeting',
-                    start: '2014-11-12T10:30:00',
-                    end: '2014-11-12T12:30:00'
-                },
-                {
-                    title: 'Lunch',
-                    start: '2014-11-12T12:00:00'
-                },
-                {
-                    title: 'Meeting',
-                    start: '2014-11-12T14:30:00'
-                },
-                {
-                    title: 'Happy Hour',
-                    start: '2014-11-12T17:30:00'
-                },
-                {
-                    title: 'Dinner',
-                    start: '2014-11-12T20:00:00'
-                },
-                {
-                    title: 'Birthday Party',
-                    start: '2014-11-13T07:00:00'
-                },
-                {
-                    title: 'Click for Google',
-                    url: 'http://google.com/',
-                    start: '2014-11-28'
-                }
-            ]
             });
         });
     </script>
@@ -137,13 +154,31 @@
             font-family: "Lucida Grande",Helvetica,Arial,Verdana,sans-serif;
             font-size: 14px;
         }
+        #main {
+            display: block
+        }
+        #menu {
+            display: inline-block;
+            width: 20%;
+            float: left;
+        }
         #calendar {
+            display: inline-block;
             max-width: 900px;
             margin: 0 auto;
+        }
+
+        ul {
+            list-style-type: none;
         }
     </style>
 </head>
 <body>
-    <div id='calendar'></div>
+    <div id='main'>
+        <div id='menu'>
+            <ul id='cblist'></div>
+        </div>
+        <div id='calendar'></div>
+    </div>
 </body>
 </html>

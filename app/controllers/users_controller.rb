@@ -7,8 +7,7 @@ class UsersController < ApplicationController
         @user.update(user_params)
         if @user.save
             respond_to do |format|
-                msg = { :user_id => @user.id }
-                format.json  { render :json => msg }
+                format.json  { render :json => @user.json_presentation }
             end
         else
             respond_to do |format|

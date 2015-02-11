@@ -24,7 +24,6 @@ class CalendarSyncEngine
                 all_user_ids.each do |user_id|
                     sync_calendar_for_user(user_id)
                 end
-                break
                 elapse = Time.new - start_time
                 sleep(1 - elapse) if elapse < 1
             end
@@ -163,7 +162,7 @@ class CalendarSyncEngine
             elapse = Time.new - start_time
             sleep(0.1 - elapse) if elapse < 0.1
         end
-        save_events_for_user(user_id, event_objects)
+        save_events_for_user(user_id, calendar_id, event_objects)
         update_event_sync_token_for_calendar(calendar_id, user_id, sync_token)
         fetched_new = (succeed and event_objects.size > 0)
     end
@@ -178,10 +177,10 @@ class CalendarSyncEngine
         end
     end
 
-    def save_events_for_user(user_id, events)
+    def save_events_for_user(user_id, calendar_id, events)
         ActiveRecord::Base.connection_pool.with_connection do 
             events.each do |event|
-                Event.create_or_update_with_gmail_event(event, user_id)
+                Event.create_or_update_with_gmail_event(event, user_id, calendar_id)
             end
         end
     end
