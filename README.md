@@ -6,6 +6,8 @@ Brief Introduction
 
 This system is constituted by two major components. A standard Ruby on Rails app handles requests, and a daemon server that syncs google calendars for users. Client side app uses WebSocket to keep connection with the server.
 
+![alt tag](https://raw.github.com/zichuanwang/calendar/master/showcase.png)
+
 
 Deployment Guidelines
 --------------------
