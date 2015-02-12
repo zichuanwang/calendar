@@ -38,7 +38,7 @@ gem 'httparty'
 
 gem 'thread'
 
-gem 'websocket-rails'
+gem 'websocket-rails', '0.6.2'
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console

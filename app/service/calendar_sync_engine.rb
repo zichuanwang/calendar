@@ -9,10 +9,10 @@ class CalendarSyncEngine
     end
 
     def start
-        if Rails.env.daemon?
-            Rails.logger.info 'start calendar sync engine'
-            sync_calendar_for_all_users
-        end
+        # if Rails.env.daemon?
+        Rails.logger.info 'start calendar sync engine'
+        sync_calendar_for_all_users
+        # end
     end
 
     private
@@ -36,16 +36,19 @@ class CalendarSyncEngine
         return false if already_syncing
 
         sync_in_background do
-            clone_start = Time.new
+            start_time = Time.new
             begin
                 fetched_new = sync_calendar_for_user_helper(user_id)
-                Rails.logger.info "fetched new #{fetched_new} for user #{user_id}"
+                Rails.logger.info "fetched new for user #{user_id}" if fetched_new
+
+                push_notification(user_id, :fetched_new, 'fetched new calendar') if fetched_new
+                        
             rescue => err
                 trace = err.backtrace.join("\n")
                 Rails.logger.error "error happens when syncing calendar for user #{user_id}, message: #{err.message}\ntrace: #{trace}"
             ensure
                 finish_sync_calendar_for_user(user_id)
-                Rails.logger.info "it took #{Time.new - clone_start} seconds to finish syncing calendar for user #{user_id}"
+                Rails.logger.info "it took #{Time.new - start_time} seconds to finish syncing calendar for user #{user_id}"
             end
         end
         return true
@@ -109,6 +112,7 @@ class CalendarSyncEngine
         page_token = nil
         cals = []
         succeed = true
+        fetched_new = false
         loop do
             start_time = Time.new
 
@@ -116,6 +120,7 @@ class CalendarSyncEngine
             sync_token = json['nextSyncToken'] if json
             page_token = json['page_token'] if json
             cals += json['items'] if json and json['items']
+            fetched_new ||= (cals.size > 0)
 
             # Rails.logger.info "cal list json: #{json}, page: #{page_token}, sync: #{sync_token}"
 
@@ -129,13 +134,16 @@ class CalendarSyncEngine
         # TODO: as specified in google api document
         # check respond for 401 Gone to reset sync token
         update_calendar_list_sync_token_for_user(user_id, sync_token)
+
+        push_notification(user_id, :cal_list_updated, 'calendar list updated') if fetched_new
+
         succeed
     end
 
     def sync_events_for_user(user_id)
         fetched_new = false
         all_calendars_for_user(user_id).each do |calendar_id, sync_token, calendar_name|
-            fetched_new = sync_events_for_user_with_calendar(user_id, calendar_id, sync_token) or fetched_new
+            fetched_new = (sync_events_for_user_with_calendar(user_id, calendar_id, sync_token) or fetched_new)
             # Rails.logger.info "events for cal name: #{calendar_name}, #{calendar_id}, #{sync_token}, fetched new: #{fetched_new}"
         end
         fetched_new
@@ -170,6 +178,7 @@ class CalendarSyncEngine
     # save
 
     def save_calendar_for_user(user_id, cals)
+        return if cals.empty?
         ActiveRecord::Base.connection_pool.with_connection do 
             cals.each do |cal|
                 Cal.create_or_update_with_google_calendar(cal, user_id)
@@ -178,6 +187,7 @@ class CalendarSyncEngine
     end
 
     def save_events_for_user(user_id, calendar_id, events)
+        return if events.empty?
         ActiveRecord::Base.connection_pool.with_connection do 
             events.each do |event|
                 Event.create_or_update_with_gmail_event(event, user_id, calendar_id)
@@ -227,8 +237,10 @@ class CalendarSyncEngine
     def all_user_ids
         result = []
         ActiveRecord::Base.connection_pool.with_connection do
-            User.all.each do |user|
-                result << user.id
+            if ActiveRecord::Base.connection.table_exists? 'users'
+                User.all.each do |user|
+                    result << user.id
+                end
             end
         end
         result
@@ -267,6 +279,15 @@ class CalendarSyncEngine
                 cal.sync_token = sync_token
                 cal.save
             end
+        end
+    end
+
+    # notification
+    def push_notification(user_id, event, data)
+        begin
+            WebsocketRails["#{user_id}"].trigger(event, data)
+        rescue => err
+            Rails.logger.error "error happened when trying to push notification: #{err.message}"
         end
     end
 end

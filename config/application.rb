@@ -23,6 +23,8 @@ module Calendar
     # Do not swallow errors in after_commit/after_rollback callbacks.
     config.active_record.raise_in_transactional_callbacks = true
 
+    config.middleware.delete Rack::Lock
+
     config.after_initialize do
       Thread.abort_on_exception = true
       $ENGINE = CalendarSyncEngine.new

@@ -4,20 +4,19 @@ Calendar App for Accompli Interview
 Brief Introduction
 --------------------
 
-This system is constituted by two major components. A standard Ruby on Rails app handles requests, and a daemon server that syncs google calendars for users. Client side app uses WebSocket to keep connection with the server.
+This system is constituted by two major components. A standard Ruby on Rails app handling requests, and a daemon server syncing google calendars for users. Client side app uses WebSocket to keep connection with the server.
+
+*In the original design, the daemon server runs in background so the standard Ruby on Rails app can run on top of Non-eventmachine based frameworks like Phusion Passenger or Unicorn. However, this requires the WebSocket server to be in standalone mode. When trying this approach, some thread related bug related to websocket-rails gem popped up. I will create an issue for this. To make a hot fix, I decided to run the calendar syncing code within the standard RoR app.*
+
+Visit <code>http://localhost:3000</code> to test.
 
 ![alt tag](https://raw.github.com/zichuanwang/calendar/master/showcase.png)
-
 
 Deployment Guidelines
 --------------------
 
 * Start Server
-    Run <code>rails server</code>. You can also use Nginx + Phusion Passenger or Unicorn if you want, but it's enough to test it in a standard development server.
-* Start Deamon
-    Run <code>rails server -e daemon -p 4000 -P ./tmp/pids/daemon.pid</code>. This is for 
-* Start WebSocket Server
-    Run <code>rake websocket_rails:start_server</code> to start a standalone WebSocket server. Run <code>rake websocket_rails:stop_server</code> it. **Note that this standalone server requires an active Redis server to enable publishing channel events to the WebSocket server from anywhere in your application.**
+    Simply <code>rails server</code>.
 
 FINISHED REQUIREMENTS
 --------------------
@@ -35,9 +34,13 @@ TO DO
 
 * Support creating events via FullCalendar and persisting them to Google Calendar
 
-* Handle 401 Gone Google API Response
+* Handle 401 Gone Google API response
 
-* Handle Timezone
+* Handle timezone
+
+* Handle access token expire
+
+* Support events removal
 
 Composed by Zichuan Wang (zichuanw@usc.edu)
 
